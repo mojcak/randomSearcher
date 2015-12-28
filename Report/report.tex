@@ -367,7 +367,7 @@ Again, we will use the same transition matrix \textbf{P'} (figure \ref{fig:adjac
 
 The transition matrix $\mathbf{T}$ is different:
 
-?????????????
+
 \[\mathbf{T}=
 \begin{bmatrix}
     \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} \\
@@ -383,7 +383,6 @@ The transition matrix $\mathbf{T}$ is different:
 \end{bmatrix}
 \]
 
-?????????????
 
 \[\mathbf{T}=
 \begin{bmatrix}
@@ -399,16 +398,15 @@ The transition matrix $\mathbf{T}$ is different:
 
 \end{bmatrix}
 \]
-?????????????
+
 Note that matrix $\mathbf{T}$ is not really stochastic (7th and 8th column do not sum up to 1 because  C does not have any outgoing links).
-?????????????
+
 Stationary distribution of the matrix $\mathbf{T}$ is:
 \[\mathbf{\pi} = \begin{bmatrix}
 	0.23076923 & 0. &  0. & 0.23076923 &  0.05128205 &  0.02564103 &  0.23076923 & 0.15384615 & 0.07692308\\
 	\end{bmatrix}
 \]
 
-?????????????
 Again, we can sum up nodes which are generated under the same probability:                   
 \[\mathbf{\pi} = 
 \begin{bmatrix}
@@ -427,7 +425,6 @@ Again, we can sum up nodes which are generated under the same probability:
 The probabilities are almost the same as the stationary distribution of $\mathbf{P'}$.
 
 
-?????????????
 We can also sum up stationary distribution by nodes (A1+A2+A3) etc.:
 \[\mathbf{\pi} = 
 \begin{bmatrix}
@@ -435,7 +432,6 @@ We can also sum up stationary distribution by nodes (A1+A2+A3) etc.:
 \end{bmatrix}
 \]
 
-????
 
 \begin{equation}
 \mathbf{\pi} = 
@@ -445,8 +441,6 @@ We can also sum up stationary distribution by nodes (A1+A2+A3) etc.:
 \label{eq:2_ex}
 \end{equation}
 
-
-??????????
 
 In order to verify the result from equation \ref{eq:2_ex}, we have to compute matrix $\mathbf{P}$ and its stationary distribution.
 
@@ -466,6 +460,20 @@ Corresponding stationary distribution of matrix $\mathbf{P}$:
 \end{bmatrix}
 \label{eq:2_ex_v}
 \end{equation}
+
+
+\section{Generating transition matrix T}
+Before we actually write down the transition matrix $\mathbf{T}$. However it is possible to generate it from adjacency matrix $\mathbf{A}$ and transition matrix $\mathbf{P'}$. Note that for now it only works for such adjacency matrices that each node in that matrix has at least one outgoing link. 
+
+In order to generate matrix $\mathbf{T}$, we have to first "normalize" adjacency matrix $\mathbf{A}$ (to take care of the nodes that have more than one outgoing link). Then we calculate the Kronecker product of $\mathbf{A_{norm}}$ and $\mathbf{P'}$:
+
+$$\mathbf{T'} = \mathbf{A_{norm}} \otimes \mathbf{P'}.$$
+
+Also we know that the first (0-th) row, and all i-th rows that are by modulo of number of transition probabilities $\alpha$ 0, contains only teleportation probabilities. We can replace those rows by teleportation probabilities and this is already our matrix $\mathbf{T}$.  
+
+In order to verify our method, we calculate the stationary distribution of matrix $\mathbf{T}$ and sum it up in two ways as before (one way: group all same nodes from $\mathbf{A}$ together, another way: group all nodes from $\mathbf{P'}$ together) and compare it to stationary distributions of $\mathbf{P'}$ and $\mathbf{P}$.
+
+This method works (there are around 1\% deviations in simple examples, which could be due to numeric precision). 
 
 
 \end{document}

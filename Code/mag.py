@@ -32,21 +32,22 @@ def stationary_eig(P):
         print("Error, eigenvalue: ", eigenValues[0])
         return -1
 
-def calculate_mc_matrix(A, P):
+def calculate_mc_matrix(A, P, alphas):
     # calculate time inhomogenous transition matrix from adjacency matrix A and layer matrix P
     vec = np.sum(A, axis=0) # take care of nodes that have more than one outgoing link
     A = (A/vec)
     T = np.kron(A, P) # kronecker product of both matrices
 
     num_states, _ = A.shape
+    num_of_alphas, _ = P.shape
 
     m, n = T.shape
 
     t = np.zeros(m)
     for j in range(m):
-        t[j] = (1-alphas[j%len(alphas)])/num_states
+        t[j] = (1-alphas[j%num_of_alphas])/num_states
     for j in range(m):
-        if j%len(alphas)==0:
+        if j%num_of_alphas==0:
             T[j,:]=t # overwrite the rows that contain only teleportations
 
 
@@ -145,7 +146,7 @@ T = np.array([
 ])
 '''
 
-T, sum_layer_P_merged, sum_layer_hier = calculate_mc_matrix(A, Ptemp)
+T, sum_layer_P_merged, sum_layer_hier = calculate_mc_matrix(A, Ptemp, alphas)
 
 print("Time inhomogenous MC:")
 print("Stationary of P* hier (summing up by layers (A+B+C..)1, (A+B+C..)2.. )", sum_layer_hier)
