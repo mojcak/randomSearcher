@@ -341,7 +341,7 @@ Stationary distribution $\pi(P)$ of matrix $P$ is:
 
 The results from equations \ref{eq:st_distr_P_2} and \ref{eq:st_distr_P_2_*} are almost the same.
 
-\subsection{Second example (?) To think about it}
+\subsection{Second example}
 Second example is in figure  \ref{fig:adj_2}. Note that node C does not have any outlinks. 
 \begin{figure}
 \centering
@@ -360,10 +360,12 @@ We can write adjacency matrix \textbf{A}:
 \]
 
 Again, we will use the same transition matrix \textbf{P'} (figure \ref{fig:adjacency3a}) and the stationary distribution is the same: 
-\[\mathbf{\pi(P')} = \begin{bmatrix}
+\begin{equation}
+\mathbf{\pi(P')} = \begin{bmatrix}
 	0.47169811 &  0.37735849 & 0.1509434\\
 	\end{bmatrix}
-\]
+	\label{eq:st_dist_P'_3}
+\end{equation}
 
 The transition matrix $\mathbf{T}$ is different:
 
@@ -371,14 +373,14 @@ The transition matrix $\mathbf{T}$ is different:
 \[\mathbf{T}=
 \begin{bmatrix}
     \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} \\
-    0 & 0 & 0 &  0 & 0 & 0 & 0 & 0 & 0 \\
-    0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    0 & 0 & 0 &  0 & 0 & 0 & \frac{alpha_1}{3}& 0 & 0 \\
+    0 & 0 & 0 & 0 & 0 & 0 & 0 & \frac{alpha_2}{3} & 0 \\
         \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} \\
-	    \frac{\alpha_1}{2} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
-	   0 & \frac{\alpha_2}{2} & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+	    \frac{\alpha_1}{2} & 0 & 0 & 0 & 0 & 0 & \frac{alpha_1}{3} & 0 & 0 \\
+	   0 & \frac{\alpha_2}{2} & 0 & 0 & 0 & 0 & 0 & \frac{alpha_2}{3} & 0 \\
         \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} & \frac{1-\alpha_1}{3} &  \frac{1-\alpha_2}{3} & \frac{1-\alpha_3}{3} \\
-		   \frac{\alpha_1}{2} & 0 & 0 & \alpha_1 & 0 & 0 & 0 & 0 & 0 \\
-		  0 & \frac{\alpha_2}{2} & 0 & 0 & \alpha_2 & 0 & 0 & 0 & 0 \\
+		   \frac{\alpha_1}{2} & 0 & 0 & \alpha_1 & 0 & 0 & \frac{alpha_1}{3} & 0 & 0 \\
+		  0 & \frac{\alpha_2}{2} & 0 & 0 & \alpha_2 & 0 & 0 & \frac{alpha_2}{3} & 0 \\
 
 \end{bmatrix}
 \]
@@ -387,23 +389,26 @@ The transition matrix $\mathbf{T}$ is different:
 \[\mathbf{T}=
 \begin{bmatrix}
     0.06666667 & 0.2 & 0.33333333 &  0.06666667 &  0.2 & 0.33333333 & 0.06666667 & 0.2 & 0.33333333 \\
-    0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
-    0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+    0 & 0 & 0 & 0 & 0 & 0 & 0.26666667 & 0 & 0 \\
+    0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.13333333 & 0 \\
        0.06666667 & 0.2 & 0.33333333 &  0.06666667 &  0.2 & 0.33333333 & 0.06666667 & 0.2 & 0.33333333 \\
-	   0.4 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
-	   0 & 0.2 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+	   0.4 & 0 & 0 & 0 & 0 & 0 & 0.26666667 & 0 & 0 \\
+	   0 & 0.2 & 0 & 0 & 0 & 0 & 0 & 0.13333333 & 0 \\
        0.06666667 & 0.2 & 0.33333333 &  0.06666667 &  0.2 & 0.33333333 & 0.06666667 & 0.2 & 0.33333333 \\
-		  0.4 & 0 & 0 & 0.8 & 0 & 0 & 0 & 0 & 0 \\
-		  0 & 0.2 & 0 & 0 &0.4 & 0 & 0 & 0 & 0 \\
+		  0.4 & 0 & 0 & 0.8 & 0 & 0 & 0.26666667 & 0 & 0 \\
+		  0 & 0.2 & 0 & 0 &0.4 & 0 & 0 & 0.13333333 & 0 \\
 
 \end{bmatrix}
 \]
 
-Note that matrix $\mathbf{T}$ is not really stochastic (7th and 8th column do not sum up to 1 because  C does not have any outgoing links).
+Because our network consisted of one node ($C$) that does not have any outlinks, we have to consider this when creating the matrix T. We only need to take care of the 7th and 8th column of the matrix $T$ because they do not sum to 1 if we do not take care of the dangling node $C$. Therefore we can imagine that from node $C1$ we can get to nodes $A2$, $B2$ and $C2$ with equal probability of $\frac{alpha_1}{3}$ (7th column). Same goes for the 8th column: we can get from node $C2$ to nodes $A3$, $B3$ and $C3$ with equal probability of $\frac{alpha_2}{3}$.
+
+
 
 Stationary distribution of the matrix $\mathbf{T}$ is:
 \[\mathbf{\pi} = \begin{bmatrix}
-	0.23076923 & 0. &  0. & 0.23076923 &  0.05128205 &  0.02564103 &  0.23076923 & 0.15384615 & 0.07692308\\
+	0.1572 &  0.0419 & 0.0307 & 0.157 &  0.1048 &  0.039 &
+  0.1572  & 0.2306 &  0.081\\
 	\end{bmatrix}
 \]
 
@@ -418,11 +423,11 @@ Again, we can sum up nodes which are generated under the same probability:
 \]
 \[\mathbf{\pi} = 
 \begin{bmatrix}
-0.692307692308 & 0.205128205128 & 0.102564102564\\
+0.47169811 & 0.37735849 & 0.1509434\\
 \end{bmatrix}
 \]
 
-The probabilities are almost the same as the stationary distribution of $\mathbf{P'}$.
+The probabilities are almost the same as the stationary distribution of $\mathbf{P'}$ in equation \ref{eq:st_dist_P'_3}.
 
 
 We can also sum up stationary distribution by nodes (A1+A2+A3) etc.:
@@ -436,7 +441,7 @@ We can also sum up stationary distribution by nodes (A1+A2+A3) etc.:
 \begin{equation}
 \mathbf{\pi} = 
 \begin{bmatrix}
-0.230769230769 & 0.307692307692 & 0.461538461538 \\
+0.22990915 & 0.30118798 & 0.46890287 \\
 \end{bmatrix}
 \label{eq:2_ex}
 \end{equation}
@@ -461,9 +466,13 @@ Corresponding stationary distribution of matrix $\mathbf{P}$:
 \label{eq:2_ex_v}
 \end{equation}
 
+We can see that the result from equation \ref{eq:2_ex_v} is almost equal to the one in equation \ref{eq:2_ex}.
+
 
 \section{Generating transition matrix T}
-Before we actually write down the transition matrix $\mathbf{T}$. However it is possible to generate it from adjacency matrix $\mathbf{A}$ and transition matrix $\mathbf{P'}$. Note that for now it only works for such adjacency matrices that each node in that matrix has at least one outgoing link. 
+Before we actually write down the transition matrix $\mathbf{T}$. However it is possible to generate it from adjacency matrix $\mathbf{A}$ and transition matrix $\mathbf{P'}$. 
+
+In order to generalize it - to work with dangling nodes as well - we have to first make a small change to matrix $\mathbf{A}$. We first sum up all the columns of matrix $\mathbf{A}$. We replace those columns that sum to 0 with columns full of ones. Everything else stays the same.
 
 In order to generate matrix $\mathbf{T}$, we have to first "normalize" adjacency matrix $\mathbf{A}$ (to take care of the nodes that have more than one outgoing link). Then we calculate the Kronecker product of $\mathbf{A_{norm}}$ and $\mathbf{P'}$:
 

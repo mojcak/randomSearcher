@@ -35,6 +35,11 @@ def stationary_eig(P):
 def calculate_mc_matrix(A, P, alphas):
     # calculate time inhomogenous transition matrix from adjacency matrix A and layer matrix P
     vec = np.sum(A, axis=0) # take care of nodes that have more than one outgoing link
+    zero_idx, = np.where(vec == 0)
+    if (zero_idx.size>0):
+        for i in zero_idx:
+            A[:, i] = 1
+        vec = np.sum(A, axis = 0)
     A = (A/vec)
     T = np.kron(A, P) # kronecker product of both matrices
 
@@ -66,20 +71,21 @@ def calculate_mc_matrix(A, P, alphas):
 
     return T, sum_layer_P_merged, sum_layer_hier
 # A is adjacency matrix of our mini network
-A = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]) # one loop, T0
+#A = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]) # one loop, T0
 #A = np.array([[0,1, 1], [1, 0, 0], [0, 1, 0]]) # corresponds to T1
-#A = np.array([[0,0,0], [1,0,0], [1,1,0]]) # corresponds to T2, one dangling
+A = np.array([[0,0,0], [1,0,0], [1,1,0]]) # corresponds to T2, one dangling
 #A = np.array([[0, 0, 0, 1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]) #loop of 4 nodes
 #A = np.array([[0,1,0,1], [1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 1]])
 #A = np.array([[1,1,0,1], [1, 0, 1, 1], [0, 1, 0, 0], [1, 0, 1, 1]])
+#A = np.array([[0,0,0], [0,0,0], [1, 0, 1]])
+#A = np.array([[0,0,0], [0,0,0], [0,0,0]])
 
-alphas = [0.8, 0.4, 0.1, 0] #alphas that we will be using
+alphas = [0.8, 0.4, 0] #alphas that we will be using
 
 # transition matrix
-Ptemp = np.array([[1-alphas[0], 1-alphas[1], 1-alphas[2], 1-alphas[3]],
-                  [alphas[0], 0, 0, 0],
-                  [0, alphas[1], 0, 0],
-                  [0, 0, alphas[2], 0]])
+Ptemp = np.array([[1-alphas[0], 1-alphas[1], 1-alphas[2]],
+                  [alphas[0], 0, 0],
+                  [0, alphas[1], 0]])
 
 Ps = [] # contains transition matrices P_i for alpha[i]
 for alpha in alphas:
@@ -134,15 +140,15 @@ T = np.array([
 '''
 ## T2
 T = np.array([
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[2])/3, (1-alphas[1])/3, (1-alphas[2])/3],
+    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
+    [0, 0, 0, 0, 0, 0, alphas[0]/3, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, alphas[1]/3, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[2])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [alphas[0]/2, 0, 0, 0, 0, 0, 0, alphas[1]/3, 0],
-    [0, alphas[1]/2, 0, 0, 0, 0, 0, 0, 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[2])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [alphas[0]/2, 0, 0, alphas[0], 0, 0, 0, alphas[1]/3, 0],
-    [0, alphas[1]/2, 0, 0, alphas[1], 0, 0, 0, 0]
+    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
+    [alphas[0]/2, 0, 0, 0, 0, 0, alphas[0]/3, 0, 0],
+    [0, alphas[1]/2, 0, 0, 0, 0, 0, alphas[1]/3, 0],
+    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
+    [alphas[0]/2, 0, 0, alphas[0], 0, 0, alphas[0]/3, 0, 0],
+    [0, alphas[1]/2, 0, 0, alphas[1], 0, 0, alphas[1]/3, 0]
 ])
 '''
 
