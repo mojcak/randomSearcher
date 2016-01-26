@@ -1,4 +1,7 @@
 import numpy as np
+import preprocess_data as preprocess
+import matplotlib.pyplot as plt
+import pickle
 
 def out_degrees(A):
     out = np.sum(A, axis=0)
@@ -26,11 +29,15 @@ def rwalk_matrix(A, alpha):
 def stationary_eig(P):
     # compute stationary distribution for matrix P as normalized right eigenvector with eigenvalue 1
     eigenValues, eigenVectors = np.linalg.eig(P)
-    if (np.allclose(eigenValues[0],1)):
-        return eigenVectors[:,0].real/np.sum(eigenVectors[:,0].real)
-    else:
-        print("Error, eigenvalue: ", eigenValues[0])
-        return -1
+
+    j=0
+    for eigenValue in eigenValues:
+        if (np.allclose(eigenValue.real,1)):
+            return eigenVectors[:,j].real/np.sum(eigenVectors[:,j].real)
+        j = j+1
+
+    print("Error, eigenvalue: ", eigenValues[0])
+    return -1
 
 def calculate_mc_matrix(A, P, alphas):
     # calculate time inhomogenous transition matrix from adjacency matrix A and layer matrix P
@@ -70,22 +77,40 @@ def calculate_mc_matrix(A, P, alphas):
 
 
     return T, sum_layer_P_merged, sum_layer_hier
+
+def make_alpha_matrix(alphas):
+    P_alphas = np.zeros((len(alphas), len(alphas)))
+    P_alphas[0,:] = 1.-alphas
+    for i in range(0, len(alphas)-1):
+        P_alphas[i+1, i] = alphas[i]
+    return P_alphas
+
 # A is adjacency matrix of our mini network
 #A = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]) # one loop, T0
 #A = np.array([[0,1, 1], [1, 0, 0], [0, 1, 0]]) # corresponds to T1
-A = np.array([[0,0,0], [1,0,0], [1,1,0]]) # corresponds to T2, one dangling
+#A = np.array([[0,0,0], [1,0,0], [1,1,0]]) # corresponds to T2, one dangling
 #A = np.array([[0, 0, 0, 1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]) #loop of 4 nodes
 #A = np.array([[0,1,0,1], [1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 1]])
 #A = np.array([[1,1,0,1], [1, 0, 1, 1], [0, 1, 0, 0], [1, 0, 1, 1]])
 #A = np.array([[0,0,0], [0,0,0], [1, 0, 1]])
 #A = np.array([[0,0,0], [0,0,0], [0,0,0]])
 
-alphas = [0.8, 0.4, 0] #alphas that we will be using
+#A, view_counts = preprocess.preprocess()
 
+A = pickle.load(open("A.p", "rb"))
+
+
+P_page_rank = rwalk_matrix(A, 0.15)
+pi_page_rank = stationary_eig(P_page_rank)
+
+view_counts  = pickle.load(open("view_counts.p", "rb"))
+
+alphas = np.array([0.1, 0.5, 0]) #alphas that we will be using
+
+
+print(str(alphas))
 # transition matrix
-Ptemp = np.array([[1-alphas[0], 1-alphas[1], 1-alphas[2]],
-                  [alphas[0], 0, 0],
-                  [0, alphas[1], 0]])
+Ptemp = make_alpha_matrix(alphas)
 
 Ps = [] # contains transition matrices P_i for alpha[i]
 for alpha in alphas:
@@ -102,9 +127,19 @@ for i in range(0, len(Ps)):
 
 print("Approximation of time inhomogenous MC: ")
 print("Stationary distr of P hier: ", pi)
-print("Stationary of P (=pi_1*P1+pi_2*P2+...) merged:", stationary_eig(P))
+#print("Stationary of P (=pi_1*P1+pi_2*P2+...) merged:", stationary_eig(P))
 
 print()
+
+#plt.plot(range(0, len(view_counts)), view_counts[:,1], 'r-', label="View counts")
+plt.plot(range(0, len(view_counts)), stationary_eig(P), 'b-', label = "Our method alphas = "+str(alphas))
+plt.plot(range(0, len(view_counts)), pi_page_rank, 'g-', label = "Page Rank alpha = 0.15")
+plt.title("Stationary distributions for different methods")
+plt.xlabel("Nodes ")
+plt.ylabel("Stationary distribution")
+plt.legend()
+plt.show()
+
 
 '''
 ## T0
@@ -152,10 +187,10 @@ T = np.array([
 ])
 '''
 
-T, sum_layer_P_merged, sum_layer_hier = calculate_mc_matrix(A, Ptemp, alphas)
+#T, sum_layer_P_merged, sum_layer_hier = calculate_mc_matrix(A, Ptemp, alphas)
 
-print("Time inhomogenous MC:")
-print("Stationary of P* hier (summing up by layers (A+B+C..)1, (A+B+C..)2.. )", sum_layer_hier)
-print("Stationary of P* merged (summing up nodes A(1+2+..), B(), C()...)", sum_layer_P_merged)
+#print("Time inhomogenous MC:")
+#print("Stationary of P* hier (summing up by layers (A+B+C..)1, (A+B+C..)2.. )", sum_layer_hier)
+#print("Stationary of P* merged (summing up nodes A(1+2+..), B(), C()...)", sum_layer_P_merged)
 
 
