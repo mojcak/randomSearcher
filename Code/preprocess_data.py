@@ -1,19 +1,28 @@
 import numpy as np
-from scipy import sparse
+import scipy.sparse as sp
 import json
 import urllib
 import requests
 import os
 import pickle
+from time import sleep
+from requests.adapters import HTTPAdapter
 
-def preprocess():
-    pagelinks_file = open('Data/vewiki-20160111-pagelinks.txt','r')
-    page_file = open('Data/vewiki-20160111-page.txt', 'r')
-    redirects = open('Data/vewiki-20160111-redirect.txt','r')
+def preprocess(files, make_txt = True):
+    # files is an array of string of our 3 files of diff language wiki
+    # files[0] is pagelink file, file[1] is page file and file[2] is redirect file
+    folder_path = (files[0][0:files[0].find("/",files[0].find("/")+1)+1])
+    wiki_name = files[0][files[0].find("/")+1:files[0].find("wiki")]
+
+    if (make_txt):
+        make_txt_files(files) # first make our txt files from sqldump
+
+    pagelinks_file = open(files[0].replace(".sql", ".txt"),'r')
+    page_file = open(files[1].replace(".sql", ".txt"), 'r')
+    redirects = open(files[2].replace(".sql", ".txt"),'r')
 
     page_dict = {}
     page_dict_inv = {}
-    non_existing_pages_page = 0
     for line in page_file:
         separated_line = line.split(',')
         namespace_page = int(separated_line[1])
@@ -22,7 +31,6 @@ def preprocess():
             page_name = separated_line[2]
             page_dict[page_name] = int(page_id)
             page_dict_inv[int(page_id)] = page_name
-
 
     redirects_dict = {} # total = 63 redirects id - redirect_to -> page_name
     redirects_dict_id_to_id = {} # total = 41, some dont exist??, redirects: id - redirect_to -> id
@@ -43,7 +51,9 @@ def preprocess():
             page_title = separated_line[2] # link to page_name
 
             if (page_dict.get(page_title) != None):
-                if (redirects_dict_id_to_id.get(int(page_dict.get(page_title)))!=None):
+                if (redirects_dict_id_to_id.get(int(id_from))!= None and int(redirects_dict_id_to_id.get(int(id_from)))==int(page_dict.get(page_title))):
+                    pass # we do not need redirect links
+                elif (redirects_dict_id_to_id.get(int(page_dict.get(page_title)))!=None):
                     '''
                     taking care of redirects
                     If link: C->A and redirect A->B, save only link C->B
@@ -52,6 +62,7 @@ def preprocess():
                     #print("Redirect from: _ to: _", page_dict.get(page_title), redirects_dict_id_to_id.get(int(page_dict.get(page_title))))
                     redirected_link_to = redirects_dict_id_to_id.get(int(page_dict.get(page_title)))
                     page_links = np.vstack([page_links, [id_from, redirected_link_to]])
+
                 else:
                     page_links = np.vstack([page_links, [id_from, page_dict.get(page_title)]])
             '''
@@ -67,14 +78,6 @@ def preprocess():
                     print(page_title)
             '''
 
-    '''
-    statistics:
-    - 3640 links between pages:
-        - 964 are articles (link from to article
-            - 1 status 200, but not found in data
-            - 368 does not exits (status 404) (prev: not found in page file)
-            - 43 redirects
-    '''
     unique_ids = sorted(list(set(page_links.ravel())))
     ## mapping: 1->0, 1574->1, 1888->2, ..., 3718->256
 
@@ -89,19 +92,24 @@ def preprocess():
     view_counts = np.zeros((len(unique_ids), 2))
     for pg in unique_ids:
         pg_name = page_dict_inv.get(int(pg))
+        print(wiki_name, pg_name[1:-1])
+        url = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/%s.wikipedia/all-access/user/%s/daily/20150111/20160111"%(wiki_name,pg_name[1:-1])
+        r = requests.Session()
+        r.mount(url, HTTPAdapter(max_retries=5))
+        try:
+            r = r.get(url)
+            if r.status_code == 200:
+                data = r.json()
+                if (len(data)!=0):
 
-        url = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/ve.wikipedia/all-access/user/%s/daily/20150111/20160111"%(pg_name[1:-1])
-        r = requests.get(url)
-        #print(pg_name)
-        if r.status_code == 200:
-            data = r.json()
-            if (len(data)!=0):
-                for d in data['items']:
-                    view_counts[i, 1] = view_counts[i, 1] + d['views']# view count!
+                    for d in data['items']:
+                        view_counts[i, 1] = view_counts[i, 1] + d['views']# view count!
 
-        view_counts[i, 0] = (map_dict.get(int(pg)))
-        i=i+1
-        #print(page_dict[pg])
+            view_counts[i, 0] = (map_dict.get(int(pg)))
+            i=i+1
+            #print(page_dict[pg])
+        except requests.exceptions.ConnectionError:
+            print("Connection refused")
     view_counts = (view_counts[np.argsort(view_counts[:,0])])
     view_counts[:,1]=view_counts[:,1]/np.sum(view_counts[:,1])
 
@@ -114,11 +122,28 @@ def preprocess():
         link_to = map_dict.get(int(link[1]))
         A[link_to, link_from] = 1
 
-    #A = sparse.csr_matrix(A) # make it sparse
-    pickle.dump(A, open("A.p", "wb"))
-    pickle.dump(view_counts, open("view_counts.p", "wb"))
-    return A, view_counts[:,1]
-preprocess()
+
+    A = sp.csr_matrix(A) # make it sparse
+    pickle.dump(A, open(folder_path+"A.p", "wb"))
+    pickle.dump(view_counts, open(folder_path+"view_counts.p", "wb"))
+    return A, view_counts
+
+
+def make_txt_files(files):
+    #pagelinks_file = open('Data/sowiki/sowiki-20160111-pagelinks.sql','r')
+
+    for f in files:
+        sql_dump = open(f, "r")
+        fl = open(f.replace(".sql", ".txt"), "a")
+        for l in sql_dump:
+            if (l.startswith("INSERT INTO")):
+                vals_tmp = (l[l.find("("):-3])
+                vals_tmp = (vals_tmp.replace("(",""))
+                vals_tmp = (vals_tmp.replace("),", "\n"))
+                fl.write(vals_tmp)
+
+
+#preprocess(['Data/vewiki/vewiki-20160111-pagelinks.sql','Data/vewiki/vewiki-20160111-page.sql', 'Data/vewiki/vewiki-20160111-redirect.sql'], make_txt="False")
 
 #r = requests.get('https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/ve.wikipedia/all-access/user/Hayani/daily/20160111/20160112')
 #%data = (r.json())

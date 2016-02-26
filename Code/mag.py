@@ -1,16 +1,21 @@
 import numpy as np
-import preprocess_data as preprocess
 import matplotlib.pyplot as plt
 import pickle
+import scipy.stats
+import sys
+import scipy.sparse as sp
+import preprocess_data as prepro
 
 def out_degrees(A):
-    out = np.sum(A, axis=0)
+    if (sp.issparse(A)):
+        out = np.ravel(sp.csr_matrix.sum(A, axis=0)).flatten()
+    else:
+        out = np.sum(A, axis=0)
     out[out == 0] = 1
-    return out
+    return np.ravel(out).flatten()
 
 def deg_matrix_inv(A):
     d = out_degrees(A)
-    d =  np.asarray(d).ravel()
     di = [1/float(a) for a in d]
     Di = np.diag(di)
     return Di
@@ -18,12 +23,21 @@ def deg_matrix_inv(A):
 def rwalk_matrix(A, alpha):
     m, n = A.shape
     Di = deg_matrix_inv(A)
-    P = np.dot(A, Di)
-    dangling = np.sum(P, axis=0)
-    dangling = np.asarray(dangling).ravel()
+    if (sp.issparse(A)):
+        P = sp.csr_matrix(A.dot(Di))
+        dangling = np.ravel(sp.csr_matrix.sum(P, axis=0)).flatten()
+        P = P.toarray()
+    else:
+        P = np.dot(A, Di)
+        dangling = np.sum(P, axis=0)
+        dangling = np.asarray(dangling).ravel()
     index_dangling = np.ix_(dangling == 0)
     P[:, index_dangling] = 1.0 / n
-    P = alpha * P + (float(1 - alpha) / n) * np.ones([n, n])
+
+    if (sp.issparse(A)):
+        P = alpha*sp.csr_matrix(P)+(float(1 - alpha) / n) * np.ones([n, n])
+    else:
+        P = alpha * P + (float(1 - alpha) / n) * np.ones([n, n])
     return P # sum of the columns == 1
 
 def stationary_eig(P):
@@ -85,112 +99,94 @@ def make_alpha_matrix(alphas):
         P_alphas[i+1, i] = alphas[i]
     return P_alphas
 
-# A is adjacency matrix of our mini network
-#A = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]]) # one loop, T0
-#A = np.array([[0,1, 1], [1, 0, 0], [0, 1, 0]]) # corresponds to T1
-#A = np.array([[0,0,0], [1,0,0], [1,1,0]]) # corresponds to T2, one dangling
-#A = np.array([[0, 0, 0, 1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]) #loop of 4 nodes
-#A = np.array([[0,1,0,1], [1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 1]])
-#A = np.array([[1,1,0,1], [1, 0, 1, 1], [0, 1, 0, 0], [1, 0, 1, 1]])
-#A = np.array([[0,0,0], [0,0,0], [1, 0, 1]])
-#A = np.array([[0,0,0], [0,0,0], [0,0,0]])
 
-#A, view_counts = preprocess.preprocess()
+def make_final_calculation(wiki):
+    A = pickle.load(open("Data/"+wiki+"/A.p", "rb"))
+    view_counts  = pickle.load(open("Data/"+wiki+"/view_counts.p", "rb"))
 
-A = pickle.load(open("A.p", "rb"))
+    P_page_rank = rwalk_matrix(A, 0.15)
+    pi_page_rank = np.asarray(stationary_eig(P_page_rank)).flatten()
 
+    alphas = np.array([0.1, 0.2, 0.5, 0.9, 0.4, 0.1, 0]) #alphas that we will be using
 
-P_page_rank = rwalk_matrix(A, 0.15)
-pi_page_rank = stationary_eig(P_page_rank)
+    print(str(alphas))
+    # transition matrix
+    Ptemp = make_alpha_matrix(alphas)
 
-view_counts  = pickle.load(open("view_counts.p", "rb"))
+    Ps = [] # contains transition matrices P_i for alpha[i]
+    for alpha in alphas:
+        # for every alpha we can contruct different transititon matrix P
+        # we will store it in  Ps
+        Ps.append(rwalk_matrix(A, alpha))
 
-alphas = np.array([0.1, 0.5, 0]) #alphas that we will be using
+    pi = stationary_eig(Ptemp)
 
+    P = np.zeros(Ps[0].shape) # final matrix P = pi_1*P_1 + pi_2*P_2 + pi_3*P_3
+    for i in range(0, len(Ps)):
+        P = P + pi[i]*Ps[i]
 
-print(str(alphas))
-# transition matrix
-Ptemp = make_alpha_matrix(alphas)
+    #print("Approximation of time inhomogenous MC: ")
+    #print("Stationary distr of P hier: ", pi)
 
-Ps = [] # contains transition matrices P_i for alpha[i]
-for alpha in alphas:
-    # for every alpha we can contruct different transititon matrix P
-    # we will store it in  Ps
-    Ps.append(rwalk_matrix(A, alpha))
+    pi_our_method = np.asarray(stationary_eig(P)).flatten()
+    #print("Stationary of P (=pi_1*P1+pi_2*P2+...) merged:", stationary_eig(P))
 
+    print("View counts vs our method")
+    print("pearson correlation: ",scipy.stats.pearsonr(view_counts[:,1], pi_our_method)[0])
+    print("spearman correlation: ", scipy.stats.spearmanr(view_counts[:,1], pi_our_method)[0])
+    print()
 
-pi = stationary_eig(Ptemp)
+    print("View counts vs page rank")
+    print("pearson correlation: ", scipy.stats.pearsonr(view_counts[:,1], pi_page_rank)[0])
+    print("spearman correlation: ", scipy.stats.spearmanr(view_counts[:,1], pi_page_rank)[0])
+    print()
 
-P = np.zeros(Ps[0].shape) # final matrix P = pi_1*P_1 + pi_2*P_2 + pi_3*P_3
-for i in range(0, len(Ps)):
-    P = P + pi[i]*Ps[i]
+    print("Our vs page rank")
+    print("pearson correlation: ",scipy.stats.pearsonr(pi_our_method, pi_page_rank)[0])
+    print("spearman correlation: ", scipy.stats.spearmanr(pi_our_method, pi_page_rank)[0])
 
-print("Approximation of time inhomogenous MC: ")
-print("Stationary distr of P hier: ", pi)
-#print("Stationary of P (=pi_1*P1+pi_2*P2+...) merged:", stationary_eig(P))
+    plt.figure(0)
+    plt.plot(view_counts[:,1],pi_our_method, 'ro')
+    plt.xlabel("View counts")
+    plt.ylabel("Our method")
+    print("View counts vs our method")
+    print(scipy.stats.pearsonr(view_counts[:,1], pi_our_method)[0])
+    print(scipy.stats.spearmanr(view_counts[:,1], pi_our_method)[0])
+    plt.title("Correlation (pearson) "+str(scipy.stats.pearsonr(view_counts[:,1], pi_our_method)[0])+" Spearman: "+str(scipy.stats.spearmanr(view_counts[:,1], pi_our_method)[0]))
 
-print()
-
-#plt.plot(range(0, len(view_counts)), view_counts[:,1], 'r-', label="View counts")
-plt.plot(range(0, len(view_counts)), stationary_eig(P), 'b-', label = "Our method alphas = "+str(alphas))
-plt.plot(range(0, len(view_counts)), pi_page_rank, 'g-', label = "Page Rank alpha = 0.15")
-plt.title("Stationary distributions for different methods")
-plt.xlabel("Nodes ")
-plt.ylabel("Stationary distribution")
-plt.legend()
-plt.show()
-
-
-'''
-## T0
-T = np.array([
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [0, 0, 0, 0, 0, 0, alphas[0], 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, alphas[1], 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [alphas[0], 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, alphas[1], 0, 0, 0, 0, 0, 0, 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [0, 0, 0, alphas[0], 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, alphas[1], 0, 0, 0, 0]
-])
-'''
-
-'''
-### T1
-T = np.array([
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [0, 0, 0, alphas[0]/2, 0, 0, alphas[0], 0, 0],
-    [0, 0, 0, 0, alphas[1]/2, 0, 0, alphas[1], 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [alphas[0], 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, alphas[1], 0, 0, 0, 0, 0, 0, 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [0, 0, 0, alphas[0]/2, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, alphas[1]/2, 0, 0, 0, 0]
-])
-
-'''
-
-'''
-## T2
-T = np.array([
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [0, 0, 0, 0, 0, 0, alphas[0]/3, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, alphas[1]/3, 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [alphas[0]/2, 0, 0, 0, 0, 0, alphas[0]/3, 0, 0],
-    [0, alphas[1]/2, 0, 0, 0, 0, 0, alphas[1]/3, 0],
-    [(1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3, (1-alphas[0])/3, (1-alphas[1])/3, (1-alphas[2])/3],
-    [alphas[0]/2, 0, 0, alphas[0], 0, 0, alphas[0]/3, 0, 0],
-    [0, alphas[1]/2, 0, 0, alphas[1], 0, 0, alphas[1]/3, 0]
-])
-'''
-
-#T, sum_layer_P_merged, sum_layer_hier = calculate_mc_matrix(A, Ptemp, alphas)
-
-#print("Time inhomogenous MC:")
-#print("Stationary of P* hier (summing up by layers (A+B+C..)1, (A+B+C..)2.. )", sum_layer_hier)
-#print("Stationary of P* merged (summing up nodes A(1+2+..), B(), C()...)", sum_layer_P_merged)
+    plt.figure(1)
+    plt.plot(view_counts[:,1],pi_page_rank, 'ro')
+    plt.xlabel("View counts")
+    plt.ylabel("Page rank")
+    print("View counts vs page rank")
+    print(scipy.stats.pearsonr(view_counts[:,1], pi_page_rank)[0])
+    print(scipy.stats.spearmanr(view_counts[:,1], pi_page_rank)[0])
+    plt.title("Correlation (Pearson): "+ str(scipy.stats.pearsonr(view_counts[:,1], pi_page_rank)[0])+" Spearman: "+str(scipy.stats.spearmanr(view_counts[:,1], pi_page_rank)[0]))
 
 
+    plt.figure(2)
+    plt.plot(pi_our_method,pi_page_rank, 'ro')
+    plt.xlabel("Our method")
+    plt.ylabel("Page rank")
+    print("Our vs page rank")
+    print(scipy.stats.pearsonr(pi_our_method, pi_page_rank)[0])
+    print(scipy.stats.spearmanr(pi_our_method, pi_page_rank)[0])
+    plt.title("Correlation (Pearson: "+ str(scipy.stats.pearsonr(pi_our_method, pi_page_rank)[0])+" Spearman: "+str(scipy.stats.spearmanr(pi_our_method, pi_page_rank)[0]))
+
+    plt.figure(3)
+    plt.plot(range(0, len(view_counts)), view_counts[:,1], 'r-', label="View counts")
+    plt.plot(range(0, len(view_counts)), stationary_eig(P), 'b-', label = "Our method alphas = "+str(alphas))
+    plt.plot(range(0, len(view_counts)), pi_page_rank, 'g-', label = "Page Rank alpha = 0.15")
+    plt.title("Stationary distributions for different methods")
+    plt.xlabel("Nodes ")
+    plt.ylabel("Stationary distribution")
+    plt.legend()
+    plt.show()
+
+
+
+make_final_calculation("miwiki")
+
+#prepro.preprocess(['Data/mtwiki/mtwiki-20160111-pagelinks.sql','Data/mtwiki/mtwiki-20160111-page.sql', 'Data/mtwiki/mtwiki-20160111-redirect.sql'], make_txt = False)
+
+#prepro.make_txt_files(['Data/sowiki/sowiki-20160111-pagelinks.sql','Data/sowiki/sowiki-20160111-page.sql', 'Data/sowiki/sowiki-20160111-redirect.sql'])
