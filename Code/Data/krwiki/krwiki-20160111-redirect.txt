@@ -1,0 +1,6 @@
+928,2,'H-Genten','',''
+1986,0,'User_talk:Az1568','m',''
+2134,4,'Protected_titles','',''
+2153,0,'Fundraising','foundation',''
+2154,0,'Help:Contents','meta',''
+2155,0,'Privacy_policy','foundation',''

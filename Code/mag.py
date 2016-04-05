@@ -1,10 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pickle
 import scipy.stats
 import sys
 import scipy.sparse as sp
 import preprocess_data as prepro
+from random import randint, random
+import math
+
 
 def out_degrees(A):
     if (sp.issparse(A)):
@@ -145,6 +147,7 @@ def make_final_calculation(wiki):
     print("pearson correlation: ",scipy.stats.pearsonr(pi_our_method, pi_page_rank)[0])
     print("spearman correlation: ", scipy.stats.spearmanr(pi_our_method, pi_page_rank)[0])
 
+    '''
     plt.figure(0)
     plt.plot(view_counts[:,1],pi_our_method, 'ro')
     plt.xlabel("View counts")
@@ -183,10 +186,107 @@ def make_final_calculation(wiki):
     plt.legend()
     plt.show()
 
+    '''
+
+def cost_function(A, view_counts, state, pear = True):
+    Ptemp = make_alpha_matrix(state)
+
+    Ps = [] # contains transition matrices P_i for alpha[i]
+    for s in state:
+        Ps.append(rwalk_matrix(A, s))
+
+    pi = calculate_stationary(Ptemp)
+    #pi = stationary_eig(Ptemp)
 
 
-make_final_calculation("miwiki")
+    P = np.zeros(Ps[0].shape) # final matrix P = pi_1*P_1 + pi_2*P_2 + pi_3*P_3
+    for i in range(0, len(Ps)):
+        P = P + pi[i]*Ps[i]
 
-#prepro.preprocess(['Data/mtwiki/mtwiki-20160111-pagelinks.sql','Data/mtwiki/mtwiki-20160111-page.sql', 'Data/mtwiki/mtwiki-20160111-redirect.sql'], make_txt = False)
+    pi_our_method = calculate_stationary(P)
+
+    if (pear):
+        corr = scipy.stats.pearsonr(view_counts[:,1], pi_our_method)[0]
+    else:
+        corr = scipy.stats.spearmanr(view_counts[:,1], pi_our_method)[0]
+    return (corr) # the returned "cost" will be in interval [0 - 2], 0 meaning totally uncorrelated
+
+def calculate_stationary(A):
+    A = A.T
+    [n,n] = A.shape
+    a = -A[0,1:]
+    b = (A[1:,1:]-np.eye(n-1))
+
+    x = np.array([1])
+
+    x  = np.append(x,np.array(np.linalg.lstsq(b.T, a.T)[0].T))
+    return x/np.sum(x)
+
+def accept_prob(cost, cost_new, T):
+    a = math.exp((-cost+cost_new)/T)
+    return a
+
+def simulated_annealing(wiki, state, sigma = 0.25, pearsonr=False):
+    A = pickle.load(open("Data/"+wiki+"/A.p", "rb"))
+    view_counts  = pickle.load(open("Data/"+wiki+"/view_counts.p", "rb"))
+
+    cost = cost_function(A, view_counts, state, pearsonr)
+
+    other_cost = cost_function(A, view_counts, state, not pearsonr)
+    print("Initial: ", cost, other_cost, state)
+
+    T = 1.0 # starting temperature
+    T_min = 1e-3 # min temperature
+    alpha = 0.95 # annealing factor
+
+
+    while T>T_min:
+        i=0
+        while i<10:
+            idx_to_perturb = (randint(0,len(state)-2)) # the last one has to be always 0!
+            add_prob = (np.random.normal(0, sigma, 1))
+            if state[idx_to_perturb]+add_prob<=1.0 and state[idx_to_perturb]+add_prob>=0:
+
+                state_new = state
+                state_new[idx_to_perturb]+=add_prob
+                cost_new = cost_function(A, view_counts, state_new, pearsonr)
+
+                if accept_prob(cost, cost_new, T)>random():
+                    state = state_new
+                    cost = cost_new
+                i+=1
+
+        T = T*alpha
+
+    other_cost = cost_function(A, view_counts, state, not pearsonr)
+    print("Final: ",cost, other_cost, state)
+
+state =np.array([ 0.1, 0.4, 0.5,  0.9,  0.4, 0.2, 0.1, 0. ])
+
+#state = np.random.rand(8)
+#state[len(state)-1] = 0
+
+import json
+jump_prob = pickle.load(open("jump.p", "rb"))
+json_acceptable_string = jump_prob.replace("'", "\"")
+d = json.loads(json_acceptable_string)
+
+state = np.zeros(len(d)+1)
+i=0
+for d_ in sorted(d):
+    state[i] = d[d_]
+    i=i+1
+
+simulated_annealing("vewiki", state, 0.25, pearsonr=False)
+
+#import cProfile
+#cProfile.run('simulated_annealing("vewiki", 0.01, pearsonr=True)', sort='cumulative')
+
+#simulated_annealing("vewiki", 0.4)
+
+#make_final_calculation("miwiki")
+
+#prepro.preprocess(['Data/vewiki/vewiki-20160111-pagelinks.sql','Data/vewiki/vewiki-20160111-page.sql', 'Data/vewiki/vewiki-20160111-redirect.sql'], make_txt = False)
 
 #prepro.make_txt_files(['Data/sowiki/sowiki-20160111-pagelinks.sql','Data/sowiki/sowiki-20160111-page.sql', 'Data/sowiki/sowiki-20160111-redirect.sql'])
+#prepro.make_txt_files(['Data/muswiki/muswiki-20160111-pagelinks.sql','Data/muswiki/muswiki-20160111-page.sql', 'Data/muswiki/muswiki-20160111-redirect.sql'])

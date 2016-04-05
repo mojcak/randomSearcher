@@ -7,6 +7,7 @@ import os
 import pickle
 from time import sleep
 from requests.adapters import HTTPAdapter
+import json
 
 def preprocess(files, make_txt = True):
     # files is an array of string of our 3 files of diff language wiki
@@ -124,8 +125,21 @@ def preprocess(files, make_txt = True):
 
 
     A = sp.csr_matrix(A) # make it sparse
-    pickle.dump(A, open(folder_path+"A.p", "wb"))
-    pickle.dump(view_counts, open(folder_path+"view_counts.p", "wb"))
+    #pickle.dump(A, open(folder_path+"A.p", "wb"))
+    #pickle.dump(view_counts, open(folder_path+"view_counts.p", "wb"))
+
+
+    with open('unique_ids.json', 'w') as fp:
+        json.dump(unique_ids, fp)
+    with open('page_dict.json', 'w') as fp:
+        json.dump(page_dict, fp)
+
+    with open('page_dict_inv.json', 'w') as fp:
+        json.dump(page_dict_inv, fp)
+    with open('redirects_dict.json', 'w') as fp:
+        json.dump(redirects_dict, fp)
+    with open('redirects_dict_id_to_id.json', 'w') as fp:
+        json.dump(redirects_dict_id_to_id, fp)
     return A, view_counts
 
 
